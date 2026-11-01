@@ -96,6 +96,18 @@ SystemPreinit(
     DebugSystemSetEventList(pLock, pList);
 }
 
+static
+STATUS
+( __cdecl _HelloIpi )(
+    IN_OPT PVOID Context
+    )
+{
+    UNREFERENCED_PARAMETER(Context);
+
+    LOGP("Hello\n");
+    return STATUS_SUCCESS ;
+}
+
 STATUS
 SystemInit(
     IN  HAL_BOOT_INFORMATION*     BootInformation
@@ -373,6 +385,13 @@ MSVC_WARNING_SUPPRESS(28039)
     EFI_TIME Time;
     EfiRuntimeGetTime(&Time, NULL);
     LOG("Year: %d\n", Time.Year);
+
+    status = SmpSendGenericIpi(_HelloIpi, NULL, NULL, NULL, FALSE);
+    if (!SUCCEEDED(status))
+    {
+        LOG_FUNC_ERROR("SmpSendGenericIpi", status);
+        return status;
+    }
 
     return status;
 }

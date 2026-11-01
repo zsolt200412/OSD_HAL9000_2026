@@ -1,0 +1,37 @@
+diff --git a/HAL/HAL9000/src/core/system.c b/HAL/HAL9000/src/core/system.c
+index 23d2724..6cf9739 100644
+--- a/HAL/HAL9000/src/core/system.c
++++ b/HAL/HAL9000/src/core/system.c
+@@ -96,6 +96,18 @@ SystemPreinit(
+     DebugSystemSetEventList(pLock, pList);
+ }
+ 
++static
++STATUS
++( __cdecl _HelloIpi )(
++    IN_OPT PVOID Context
++    )
++{
++    UNREFERENCED_PARAMETER(Context);
++
++    LOGP("Hello\n");
++    return STATUS_SUCCESS ;
++}
++
+ STATUS
+ SystemInit(
+     IN  HAL_BOOT_INFORMATION*     BootInformation
+@@ -374,6 +386,13 @@ MSVC_WARNING_SUPPRESS(28039)
+     EfiRuntimeGetTime(&Time, NULL);
+     LOG("Year: %d\n", Time.Year);
+ 
++    status = SmpSendGenericIpi(_HelloIpi, NULL, NULL, NULL, FALSE);
++    if (!SUCCEEDED(status))
++    {
++        LOG_FUNC_ERROR("SmpSendGenericIpi", status);
++        return status;
++    }
++
+     return status;
+ }
+ 
