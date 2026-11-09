@@ -89,6 +89,9 @@ SyscallHandler(
             );
             break;
         // STUDENT TODO: implement the rest of the syscalls 
+        case SyscallIdNoOfReadyThreads:
+            status = SyscallNoOfReadyThreads((QWORD*)pSyscallParameters[0]);
+            break;
         default:
             LOG_ERROR("Unimplemented syscall called from User-space!\n");
             status = STATUS_UNSUPPORTED;
@@ -231,6 +234,31 @@ SyscallFileWrite(
     }
 
     *BytesWritten = BytesToWrite;
+    return STATUS_SUCCESS;
+}
+
+STATUS
+SyscallNoOfReadyThreads(
+    OUT     QWORD*                  NoOfReadyThreads
+    )   
+{
+    MmuIsBufferValid(NoOfReadyThreads, sizeof(QWORD), PAGE_RIGHTS_WRITE, GetCurrentProcess());
+
+    PTHREAD_SYSTEM_DATA pThreadSystemData = GetThreadSystemData();
+    INTR_STATE oldIntrState;
+    LockAcquire(&pThreadSystemData->ReadyThreadsLock, &oldIntrState);
+
+    for(PTHREAD pThread = (PTHREAD)pThreadSystemData->ReadyThreadsList.Flink;
+        pThread != (PTHREAD)&pThreadSystemData->ReadyThreadsList;
+        pThread = (PTHREAD)pThread->ReadyList.Flink)
+    {
+        (*NoOfReadyThreads)++;
+    }
+
+    // (*NoOfReadyThreads)++ = ListSize(&pThreadSystemData->ReadyThreadsList);
+
+    LockRelease(&pThreadSystemData->ReadyThreadsLock, oldIntrState);
+
     return STATUS_SUCCESS;
 }
 

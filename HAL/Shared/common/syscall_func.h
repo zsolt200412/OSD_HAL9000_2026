@@ -306,3 +306,15 @@ SyscallFileWrite(
     IN  QWORD                       BytesToWrite,
     OUT QWORD*                      BytesWritten
     );
+
+// SyscallIdNoOfReadyThreads
+//******************************************************************************
+// Function:     SyscallNoOfReadyThreads
+// Description:  Returns the number of ready threads in the system.
+// Returns:      STATUS
+// Parameter:    OUT QWORD* NoOfReadyThreads
+//******************************************************************************
+STATUS
+SyscallNoOfReadyThreads(
+    OUT     QWORD*                  NoOfReadyThreads
+    );

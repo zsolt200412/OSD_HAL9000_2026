@@ -30,22 +30,14 @@ void
 
 extern FUNC_ThreadSwitch            ThreadSwitch;
 
-typedef struct _THREAD_SYSTEM_DATA
-{
-    LOCK                AllThreadsLock;
-
-    // DO NOT CHANGE THE NAME OF THIS FIELD
-    _Guarded_by_(AllThreadsLock)
-    LIST_ENTRY          AllThreadsList;
-
-    LOCK                ReadyThreadsLock;
-
-    _Guarded_by_(ReadyThreadsLock)
-    LIST_ENTRY          ReadyThreadsList;
-} THREAD_SYSTEM_DATA, *PTHREAD_SYSTEM_DATA;
-
 // DO NOT CHANGE THE NAME OF THIS VARIABLE
 static THREAD_SYSTEM_DATA m_threadSystemData;
+
+PTHREAD_SYSTEM_DATA
+GetThreadSystemData()
+{
+    return &m_threadSystemData;
+}
 
 ALWAYS_INLINE
 static

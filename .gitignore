@@ -21,3 +21,4 @@ temp/*
 tests/__pycache__/*
 tests/evaluators/__pycache__/*
 Tests.txt
+*diff.txt

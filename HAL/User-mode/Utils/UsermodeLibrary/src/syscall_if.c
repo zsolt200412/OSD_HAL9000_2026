@@ -198,3 +198,12 @@ SyscallFileWrite(
 {
     return SyscallEntry(SyscallIdFileWrite, FileHandle, Buffer, BytesToWrite, BytesWritten);
 }
+
+
+STATUS
+SyscallNoOfReadyThreads(
+    OUT     QWORD*                  NoOfReadyThreads
+    )
+{
+    return SyscallEntry(SyscallIdNoOfReadyThreads, NoOfReadyThreads);
+}

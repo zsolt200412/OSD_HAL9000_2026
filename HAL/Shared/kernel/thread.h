@@ -119,3 +119,21 @@ THREAD_PRIORITY
 ThreadGetPriority(
     IN_OPT  PTHREAD             Thread
     );
+
+
+PTHREAD_SYSTEM_DATA
+GetThreadSystemData();
+
+typedef struct _THREAD_SYSTEM_DATA
+{
+    LOCK                AllThreadsLock;
+
+    // DO NOT CHANGE THE NAME OF THIS FIELD
+    _Guarded_by_(AllThreadsLock)
+    LIST_ENTRY          AllThreadsList;
+
+    LOCK                ReadyThreadsLock;
+
+    _Guarded_by_(ReadyThreadsLock)
+    LIST_ENTRY          ReadyThreadsList;
+} THREAD_SYSTEM_DATA, *PTHREAD_SYSTEM_DATA;
