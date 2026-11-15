@@ -13,6 +13,7 @@
 #include "cal_annotate.h"
 #include "cal_assembly.h"
 #include "cal_seh.h"
+#include "syscall_validation.h"
 
 extern void MS_ABI SyscallEntry();
 
@@ -64,6 +65,19 @@ SyscallHandler(
         sysCallId = usermodeProcessorState->RegisterValues[RegisterR8];
 
         LOG_TRACE_USERMODE("System call ID is %u\n", sysCallId);
+
+        DWORD parameterCount;
+        if (!SyscallGetParameterCount(sysCallId, &parameterCount))
+        {
+            status = STATUS_UNSUPPORTED;
+            __leave;
+        }
+
+        status = SyscallValidateParameterArea(pParameters, parameterCount);
+        if (!SUCCEEDED(status))
+        {
+            __leave;
+        }
 
         // The first parameter is the system call ID, we don't care about it => +1
         pSyscallParameters = (PQWORD)usermodeProcessorState->RegisterValues[RegisterRbp] + 1;
@@ -220,9 +234,17 @@ SyscallFileWrite(
     OUT QWORD* BytesWritten
 )
 {
-    if (BytesWritten == NULL) {
-        return STATUS_UNSUCCESSFUL;
-    }
+    STATUS status;
+
+    // if (BytesWritten == NULL) {
+    //     return STATUS_UNSUCCESSFUL;
+    // }
+
+    status = SyscallValidateUserOut(BytesWritten);
+    if (!SUCCEEDED(status)) { return status; }
+
+    status = SyscallValidateUserBuffer(Buffer, BytesToWrite, PAGE_RIGHTS_READ);
+    if (!SUCCEEDED(status)) { return status; }
 
     if (FileHandle == UM_FILE_HANDLE_STDOUT) {
         *BytesWritten = BytesToWrite;
