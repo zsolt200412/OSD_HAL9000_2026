@@ -11,6 +11,17 @@ void
 (CDECL CmdListThreads)(
     IN          QWORD       NumberOfParameters
     );
+// a5
+void
+(CDECL listSecretThreads)(
+    IN          QWORD       NumberOfParameters
+    );
+
+// a3
+void
+(CDECL getMaxThreads)(
+    IN          QWORD       NumberOfParameters
+    );
 
 void
 (CDECL CmdYield)(

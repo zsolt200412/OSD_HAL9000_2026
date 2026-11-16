@@ -19,6 +19,7 @@
 #include "cal_annotate.h"
 #include "cal_assembly.h"
 #include "cal_seh.h"
+#include "thread.h"
 
 
 WARNING_PUSH
@@ -75,6 +76,9 @@ _CmdReadAndDumpCpuid(
     );
 
 static FUNC_ListFunction _CmdThreadPrint;
+
+// a5
+static FUNC_ListFunction _CmdSecretThreadPrint;
 
 void
 (CDECL CmdListCpus)(
@@ -144,6 +148,35 @@ void
 
     status = ThreadExecuteForEachThreadEntry(_CmdThreadPrint, NULL );
     ASSERT( SUCCEEDED(status));
+}
+
+// a5
+void
+(CDECL listSecretThreads)(
+    IN          QWORD       NumberOfParameters
+    )
+{
+    ASSERT(NumberOfParameters == 0);
+    
+    STATUS status;
+    
+    LOG("List of secret threads: \n");
+
+    status = ThreadExecuteForEachSecretThreadEntry(_CmdSecretThreadPrint, NULL );
+    ASSERT( SUCCEEDED(status));
+}
+
+
+// a3
+void
+(CDECL getMaxThreads)(
+    IN          QWORD       NumberOfParameters
+    )
+{
+    ASSERT(NumberOfParameters == 0);
+    
+    QWORD maxxTID = getMaxTID();
+    LOG("Max TID is: %d", (int)maxxTID);
 }
 
 void
@@ -680,6 +713,35 @@ _CmdHelperPrintThreadFunctions(
         printf("%2u. %s\n", i, THREADS_TEST[i].TestName);
     }
 }
+
+// a5
+static
+STATUS
+(CDECL _CmdSecretThreadPrint) (
+    IN      PLIST_ENTRY     ListEntry,
+    IN_OPT  PVOID           FunctionContext
+    )
+{
+    PTHREAD pThread;
+
+    ASSERT( NULL != ListEntry );
+    ASSERT( NULL == FunctionContext );
+
+    pThread = CONTAINING_RECORD(ListEntry, THREAD, SecretThreadsList );
+
+    if(pThread->Codename[0] >= 'a' && pThread->Codename[0] <= 'z')
+    {
+        LOG("%6x%c", pThread->Id, '|');
+        LOG("%19s%c", pThread->Codename, '|');
+        LOG("\n");
+    }
+    LOG("%6x%c", pThread->Id, '|');
+    LOG("%19s%c", pThread->Codename, '|');
+    LOG("\n");
+
+    return STATUS_SUCCESS;
+}
+
 
 static
 STATUS

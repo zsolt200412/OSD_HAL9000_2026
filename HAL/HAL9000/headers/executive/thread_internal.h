@@ -92,6 +92,10 @@ typedef struct _THREAD
     PVOID                   UserStack;
 
     struct _PROCESS*        Process;
+
+    // a5
+    char*                   Codename;
+    LIST_ENTRY              SecretThreadsList;
 } THREAD, *PTHREAD;
 
 //******************************************************************************
@@ -263,6 +267,14 @@ ThreadTakeBlockLock(
 //******************************************************************************
 STATUS
 ThreadExecuteForEachThreadEntry(
+    IN      PFUNC_ListFunction  Function,
+    IN_OPT  PVOID               Context
+    );
+
+
+// a5
+STATUS
+ThreadExecuteForEachSecretThreadEntry(
     IN      PFUNC_ListFunction  Function,
     IN_OPT  PVOID               Context
     );

@@ -73,11 +73,16 @@ static const COMMAND_DEFINITION COMMANDS[] =
     { "timer", "$MODE [$TIME_IN_US] [$TIMES]\n\tSee EX_TIMER_TYPE for timer types\n\t$TIME_IN_US time in uS until timer fires"
                 "\n\t$TIMES - number of times to wait for timer, valid only if periodic", (PFUNC_GenericCommand) CmdTestTimer, 1, 3},
 
+    // a3
+    { "maxThreads", "Display thread with greatest TID", (PFUNC_GenericCommand) getMaxThreads, 0, 0},
     { "threads", "Displays all threads", (PFUNC_GenericCommand) CmdListThreads, 0, 0},
     { "run", "$TEST [$NO_OF_THREADS]\n\tRuns the $TEST specified"
              "\n\t$NO_OF_THREADS the number of threads for running the test,"
              "if the number is not specified then it will run on 2 * NumberOfProcessors",
              (PFUNC_GenericCommand) CmdRunTest, 1, 2},
+
+    // a5
+    { "secretThreads", "List secret threads", (PFUNC_GenericCommand) listSecretThreads, 0, 0},
 
     { "processes", "Displays all processes", (PFUNC_GenericCommand) CmdListProcesses, 0, 0},
     { "procstat", "0x$PID - displays information about a process", (PFUNC_GenericCommand) CmdProcessDump, 1, 1},

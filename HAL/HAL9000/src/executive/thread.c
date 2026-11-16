@@ -15,7 +15,8 @@
 #include "cal_assembly.h"
 #include "cal_seh.h"
 
-#define TID_INCREMENT               4
+// a1
+#define TID_INCREMENT               0x10
 
 #define THREAD_TIME_SLICE           1
 
@@ -42,6 +43,15 @@ typedef struct _THREAD_SYSTEM_DATA
 
     _Guarded_by_(ReadyThreadsLock)
     LIST_ENTRY          ReadyThreadsList;
+
+    // a4
+    LOCK                TotalTicksLock;
+    QWORD               TotalTicks;
+
+    // a5
+    LOCK                SecretThreadsLock;
+    LIST_ENTRY          SecretThreads;
+
 } THREAD_SYSTEM_DATA, *PTHREAD_SYSTEM_DATA;
 
 // DO NOT CHANGE THE NAME OF THIS VARIABLE
@@ -54,7 +64,8 @@ _ThreadSystemGetNextTid(
     void
     )
 {
-    static volatile TID __currentTid = 0;
+    // a1
+    static volatile TID __currentTid = 0x100;
 
     return AtomicExchangeAdd64(&__currentTid, TID_INCREMENT);
 }
@@ -156,6 +167,14 @@ ThreadSystemPreinit(
     InitializeListHead(&m_threadSystemData.ReadyThreadsList);
     LockInit(&m_threadSystemData.ReadyThreadsLock);
     LockSetName(&m_threadSystemData.ReadyThreadsLock, "RdyThreads");
+
+    LockInit(&m_threadSystemData.TotalTicksLock);
+    LockSetName(&m_threadSystemData.TotalTicksLock, "TotalTicksLock");
+    m_threadSystemData.TotalTicks = 0;
+
+    LockInit(&m_threadSystemData.SecretThreadsLock);
+    LockSetName(&m_threadSystemData.SecretThreadsLock, "SecretThreadsLock");
+    InitializeListHead(&m_threadSystemData.SecretThreads);
 }
 
 void
@@ -430,6 +449,14 @@ MSVC_WARNING_SUPPRESS(4152)
         LOG_FUNC_ERROR("_ThreadSetupInitialState", status);
         return status;
     }
+    else
+    {
+        // a2
+        if(0 == pCpu->ApicId)
+        {
+            LOG("I am a thread and created on an even CPU Core with the ID of [Id=0x%X].\n", pCpu->ApicId);
+        }
+    }
 
     if (NULL == pCpu->ThreadData.IdleThread)
     {
@@ -469,6 +496,13 @@ ThreadTick(
         pCpu->ThreadData.KernelTicks++;
     }
     pThread->TickCountCompleted++;
+
+    // a4
+    INTR_STATE oldState;
+    LockAcquire(&m_threadSystemData.TotalTicksLock, &oldState);
+    m_threadSystemData.TotalTicks++;
+    LockRelease(&m_threadSystemData.TotalTicksLock, oldState);
+
 
     if (++pCpu->ThreadData.RunningThreadTicks >= THREAD_TIME_SLICE)
     {
@@ -720,6 +754,35 @@ ThreadExecuteForEachThreadEntry(
     return status;
 }
 
+// a5
+
+STATUS
+ThreadExecuteForEachSecretThreadEntry(
+    IN      PFUNC_ListFunction  Function,
+    IN_OPT  PVOID               Context
+    )
+{
+    STATUS status;
+    INTR_STATE oldState;
+
+    if (NULL == Function)
+    {
+        return STATUS_INVALID_PARAMETER1;
+    }
+
+    status = STATUS_SUCCESS;
+
+    LockAcquire(&m_threadSystemData.SecretThreadsLock, &oldState);
+    status = ForEachElementExecute(&m_threadSystemData.SecretThreads,
+                                   Function,
+                                   Context,
+                                   FALSE
+                                   );
+    LockRelease(&m_threadSystemData.SecretThreadsLock, oldState );
+
+    return status;
+}
+
 void
 SetCurrentThread(
     IN      PTHREAD     Thread
@@ -831,6 +894,27 @@ _ThreadInit(
         LockAcquire(&m_threadSystemData.AllThreadsLock, &oldIntrState);
         InsertTailList(&m_threadSystemData.AllThreadsList, &pThread->AllList);
         LockRelease(&m_threadSystemData.AllThreadsLock, oldIntrState);
+
+        // a5
+        // char *randStr;
+        // randStr = ExAllocatePoolWithTag(PoolAllocateZeroMemory, sizeof(char)*(10 + 1), HEAP_THREAD_TAG, 0);
+        // if (NULL == randStr)
+        // {
+        //     LOG_FUNC_ERROR_ALLOC("HeapAllocatePoolWithTag", sizeof(char)*(10 + 1));
+        //     status = STATUS_HEAP_INSUFFICIENT_RESOURCES;
+        //     __leave;
+        // }
+
+        // snprintf(randStr, 10, "%s", "aaaaaaaaaa");
+        // for(int i=0;i<10;i++)
+        // {
+        //     // randStr += (char)rand(0, 128); // cred ca toate caractere ascii sunt printable ?
+        // }
+        // // randStr += '\0';
+        // strcpy(pThread->Codename, randStr);
+        // LockAcquire(&m_threadSystemData.SecretThreadsLock, &oldIntrState);
+        // InsertTailList(&m_threadSystemData.SecretThreads, &pThread->SecretThreadsList);
+        // LockRelease(&m_threadSystemData.SecretThreadsLock, oldIntrState);
     }
     __finally
     {
@@ -847,6 +931,7 @@ _ThreadInit(
 
         LOG_FUNC_END;
     }
+
 
     return status;
 }
@@ -1246,6 +1331,13 @@ _ThreadDestroy(
         pThread->Name = NULL;
     }
 
+    // a5
+    if (NULL != pThread->Codename)
+    {
+        ExFreePoolWithTag(pThread->Codename, HEAP_THREAD_TAG);
+        pThread->Codename = NULL;
+    }
+
     if (NULL != pThread->Stack)
     {
         // This is the kernel mode stack
@@ -1276,4 +1368,30 @@ _ThreadKernelFunction(
 
     ThreadExit(exitStatus);
     NOT_REACHED;
+}
+
+// a3
+QWORD
+getMaxTID()
+{
+    QWORD maxx = 0;
+
+    INTR_STATE oldState;
+    LockAcquire(&m_threadSystemData.AllThreadsLock, &oldState);
+
+    for(PLIST_ENTRY pEntry = m_threadSystemData.AllThreadsList.Flink;
+        pEntry != &m_threadSystemData.AllThreadsList;
+        pEntry = pEntry->Flink)
+        {
+            PTHREAD pThread = CONTAINING_RECORD(pEntry, THREAD, AllList);
+            if(pThread->Id > maxx)
+            {
+                maxx = pThread->Id;
+            }
+        }
+
+    LockRelease(&m_threadSystemData.AllThreadsLock, oldState);
+
+
+    return maxx;
 }
